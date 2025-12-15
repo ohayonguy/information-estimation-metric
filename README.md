@@ -19,7 +19,7 @@ Some Windows users may face an issue when installing the [NATTEN](https://github
 Download the diffusion model checkpoint from [Google Drive](https://drive.google.com/file/d/1sCHPTdYjbwTLsd5tPu5Zok28wloDkjXw/view?usp=sharing). Move the checkpoint to the `checkpoints/` folder.
 
 ### ⚡ Inference
-See code below or `inference_example.ipynb`.
+See code below or `examples.ipynb`.
 ```
 from information_estimation_metric import InformationEstimationMetric
 
@@ -48,8 +48,8 @@ iem(x1, x2, num_gamma=num_gamma, sigma_min=sigma_min, sigma_max=sigma_max, iem_t
 The `paper_plots/` folder contains code to generate some of the figures in our paper.
 
 ### Optimizing the IEM under fixed PSNR
-The `inference_example.ipynb` notebook contains an example where we maximize/minimize the IEM between an image $x$ and 
-a distorted version $x+\epsilon$ while keeping the PSNR between them fixed (using projected gradient descent).
+The `examples.ipynb` notebook contains an example where we maximize/minimize the IEM (and other metrics) between an image
+$x$ and a distorted version $x+\epsilon$ while keeping the PSNR between them fixed (using projected gradient descent).
 ### 📝 Citation
 ```
 @article{ohayon2025iem,
