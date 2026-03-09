@@ -137,5 +137,5 @@ if __name__ == "__main__":
         X_centers, H_per_x,
         xlim=xlim, ylim=ylim, grid_n=200,
         ellipse_scale=0.3, step_centers=2,
-        savepath="gmm_ellipses.pdf"
+        savepath="gmm_local.pdf"
     )

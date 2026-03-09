@@ -29,9 +29,12 @@ plt.rcParams.update({
     "text.latex.preamble": r"\usepackage{amsfonts}\usepackage{amsmath}\usepackage{bm}\usepackage{mathtools}\usepackage{dsfont}\usepackage{amssymb}\usepackage{pifont}\newcommand{\cmark}{\ding{51}}\newcommand{\xmark}{\ding{55}}",
 })
 
-means = torch.tensor([[0, 1], [0, 1]], device=device, dtype=dtype)
-b_scales = torch.tensor([[4, 2], [4, 2]], device=device, dtype=dtype)
-weights = torch.tensor([0.30, 0.70], device=device, dtype=dtype)
+means = torch.tensor([[ 0,  1],
+                      [0, 1.]])
+b_scales= torch.tensor([[0.3, 0.1],
+                        [0.3, 0.1]], dtype=torch.float32)
+weights = torch.tensor([0.30, 0.70], dtype=dtype)
+
 
 cat = Categorical(weights)
 comp = Independent(Laplace(loc=means, scale=b_scales), reinterpreted_batch_ndims=1)
@@ -48,14 +51,15 @@ def _log_normlaplace_1d(y, mu, b, sigma):
 
 
 def log_pY_given_gamma(y, gamma):
+    sigma = torch.sqrt(gamma)
     if y.ndim == 1:
         y = y.unsqueeze(0)
-    sigma = torch.sqrt(gamma)
-    lp0 = _log_normlaplace_1d(y[:, 0].unsqueeze(1), means[:, 0], b_scales[:, 0], sigma)
-    lp1 = _log_normlaplace_1d(y[:, 1].unsqueeze(1), means[:, 1], b_scales[:, 1], sigma)
+
+    lp0 = _log_normlaplace_1d(y[:, 0].unsqueeze(1), gamma * means[:, 0], gamma * b_scales[:, 0], sigma)
+    lp1 = _log_normlaplace_1d(y[:, 1].unsqueeze(1), gamma * means[:, 1], gamma * b_scales[:, 1], sigma)
     comp_lp = lp0 + lp1
     log_w = torch.log(weights / weights.sum())
-    return torch.logsumexp(comp_lp + log_w, dim=-1) - y.shape[-1] * torch.log(gamma)
+    return torch.logsumexp(comp_lp + log_w, dim=-1)
 
 
 def hessian_y_logpY_gamma():
@@ -100,9 +104,12 @@ def contour(f, xlim, ylim, n):
 
 
 def plot_logpX_with_ellipses(X_centers, H_per_x, xlim=(-5, 5), ylim=(-5, 5),
-                             ellipse_scale=1.0, path="hessian_ellipses.pdf"):
+                             ellipse_scale=1.0, path="hessian_ellipses.pdf", step_centers=1):
     _, ax = contour(lambda z: pX.log_prob(z), xlim, ylim, n=300)
     Xc, Hc = X_centers.cpu().numpy(), H_per_x.cpu().numpy()
+    if step_centers > 1:
+        Xc = Xc[::step_centers]
+        Hc = Hc[::step_centers]
     for (cx, cy), H in zip(Xc, Hc):
         lam, V = np.linalg.eigh(H)
         r = ellipse_scale / np.sqrt(lam)
@@ -123,24 +130,22 @@ def plot_logpX_with_ellipses(X_centers, H_per_x, xlim=(-5, 5), ylim=(-5, 5),
 
 
 if __name__ == "__main__":
-    grid_size = 13
-    lim = 4
-    xlim = (-lim * width, lim * width)
-    ylim = (-lim * height, lim * height)
-
-    gx = torch.tensor(
-        [-lim, -lim + 1.5, -lim + 2.3, -lim + 3, -lim + 3.5, 0, lim - 3.5, lim - 3, lim - 2.3, lim - 1.5, lim],
-        device=device, dtype=dtype)
-    gy = torch.tensor(
-        [-lim, -lim + 1, -lim + 1.6, -lim + 2.1, -lim + 2.5, -lim + 3, -lim + 3.5, 0, lim - 3.5, lim - 3, lim - 2.5,
-         lim - 2], device=device, dtype=dtype)
+    grid_size = 15
+    n = 4.32
+    gx = torch.linspace(-width * n, width * n, grid_size)
+    gy = torch.linspace(-height * n, height * n, grid_size)
 
     GX, GY = torch.meshgrid(gx, gy, indexing="ij")
-    X_centers = torch.stack([GX, GY], -1).reshape(-1, 2) + means[0].unsqueeze(0)
+    X_centers = torch.stack([GX, GY], dim=-1).reshape(-1, 2)
 
-    gammas = torch.logspace(-2, 2, 200, device=device, dtype=dtype, base=2)
+    xlim = (-n * width, n * width)
+    ylim = (-n * height, n * height)
+
+
+    gammas = torch.logspace(-4, 4, 200, device=device, dtype=dtype, base=2)
     H_per_x = compute_H_per_x(X_centers, gammas, num_noises=100, seed=123)
 
+    step_centers = 2
     plot_logpX_with_ellipses(X_centers, H_per_x, xlim=xlim, ylim=ylim,
-                             ellipse_scale=0.02, path="hessian_ellipses.pdf")
+                             ellipse_scale=0.4, path="laplace_local.pdf", step_centers=step_centers)
 
