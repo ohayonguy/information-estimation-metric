@@ -52,13 +52,13 @@ The `examples.ipynb` notebook contains an example where we maximize/minimize the
 $x$ and a distorted version $x+\epsilon$ while keeping the PSNR between them fixed (using projected gradient descent).
 ### 📝 Citation
 ```
-@article{ohayon2025iem,
-      title={Learning a distance measure from the information-estimation geometry of data}, 
-      author={Guy Ohayon and Pierre-Etienne H. Fiquet and Florentin Guth and Jona Ballé and Eero P. Simoncelli},
-      year={2025},
-      journal={arXiv preprint arXiv:2510.02514},
-      primaryClass={eess.IV},
-      url={https://arxiv.org/abs/2510.02514}, 
+@inproceedings{
+    ohayon2026learning,
+    title={Learning a distance measure from the information-estimation geometry of data},
+    author={Guy Ohayon and Pierre-Etienne H Fiquet and Florentin Guth and Jona Ball{\'e} and Eero P Simoncelli},
+    booktitle={The Fourteenth International Conference on Learning Representations},
+    year={2026},
+    url={https://openreview.net/forum?id=4uTZobABec}
 }
 ```
 ### 📋 License

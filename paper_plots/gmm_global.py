@@ -1,10 +1,10 @@
-import math
-import torch
-from torch import distributions as D
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
+import torch
 from matplotlib.colors import LinearSegmentedColormap
+from torch import distributions as D
+
 
 def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
     return LinearSegmentedColormap.from_list(
@@ -12,7 +12,8 @@ def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=256):
         cmap(np.linspace(minval, maxval, n))
     )
 
-trunc_cmap  = truncate_colormap(plt.cm.get_cmap("viridis"), 0, 1)
+
+trunc_cmap = truncate_colormap(plt.cm.get_cmap("viridis"), 0, 1)
 trunc_cmap2 = truncate_colormap(plt.cm.get_cmap("Greys"), 1, 1)
 
 sns.set_theme(palette="cividis", style="whitegrid", font_scale=1, rc={
@@ -25,34 +26,33 @@ sns.set_theme(palette="cividis", style="whitegrid", font_scale=1, rc={
     'text.latex.preamble': r'\usepackage{amsfonts}\usepackage{amsmath}\usepackage{bm}\usepackage{mathtools}\usepackage{dsfont}\usepackage{amssymb}\usepackage{pifont}\newcommand{\cmark}{\ding{51}}\newcommand{\xmark}{\ding{55}}'
 })
 
-means   = torch.tensor([[0., 1.], [1., -1.]])
-covs    = torch.tensor([[[1., 0.], [0., 0.1]], [[1., 0.5], [0.5, 0.4]]])
+means = torch.tensor([[0., 1.], [1., -1.]])
+covs = torch.tensor([[[1., 0.], [0., 0.1]], [[1., 0.5], [0.5, 0.4]]])
 weights = torch.tensor([0.3, 0.7])
-log_w   = torch.log_softmax(weights.log().clamp_min(1e-32), dim=-1)
+log_w = weights.log()
 
-def _mvnormal_log_prob(y, mean, cov):
-    d = y.shape[-1]
-    chol = torch.linalg.cholesky(cov)
-    diff = y - mean
-    z = torch.cholesky_solve(diff.unsqueeze(-1), chol).squeeze(-1)
-    logdet = 2.0 * torch.diagonal(chol, dim1=-2, dim2=-1).log().sum(-1)
-    return -0.5 * (d * math.log(2.0 * math.pi) + logdet + (diff * z).sum(-1))
+
 
 def log_pX(x):
-    xK = x.unsqueeze(-2).expand(*x.shape[:-1], means.shape[0], 2)
-    return torch.logsumexp(_mvnormal_log_prob(xK, means, covs) + log_w, dim=-1)
+    mix = D.Categorical(logits=log_w, validate_args=False)
+    comp = D.MultivariateNormal(loc=means, covariance_matrix=covs, validate_args=False)
+    return D.MixtureSameFamily(mix, comp, validate_args=False).log_prob(x)
+
 
 def get_Y_distribution(gamma):
     new_means = gamma * means
-    new_covs  = gamma**2 * covs + torch.eye(2) * gamma
+    new_covs = gamma ** 2 * covs + torch.eye(2) * gamma
     return D.MixtureSameFamily(D.Categorical(weights),
                                D.MultivariateNormal(new_means, new_covs))
+
 
 def log_p_Y_given_X(y, x, gamma):
     return D.MultivariateNormal(gamma * x, torch.eye(2) * gamma).log_prob(y)
 
+
 def log_p_Y(y, gamma):
     return get_Y_distribution(gamma).log_prob(y)
+
 
 def score_diff_y(y, x, gamma):
     if float(gamma) == 0.0:
@@ -62,6 +62,7 @@ def score_diff_y(y, x, gamma):
     g1 = torch.autograd.grad(log_p_Y_given_X(y, x, gamma).sum(), y, create_graph=True)[0]
     g2 = torch.autograd.grad(log_p_Y(y, gamma).sum(), y, create_graph=True)[0]
     return g1 - g2
+
 
 def compute_quadratic_variation(x1, x2, W, gammas):
     num_eps = W.shape[1]
@@ -81,14 +82,17 @@ def compute_quadratic_variation(x1, x2, W, gammas):
 
     return torch.stack(qv, dim=0).detach().cpu(), gammas
 
+
 def make_ax(width, height):
     fig, ax = plt.subplots(1, 1, figsize=(width, height))
     ax.set_facecolor('none')
-    ax.set_xticks([]); ax.set_yticks([])
+    ax.set_xticks([])
+    ax.set_yticks([])
     for spine in ax.spines.values():
         spine.set_linewidth(0.6)
         spine.set_zorder(10000)
     return fig, ax
+
 
 if __name__ == "__main__":
     x1_sample = torch.tensor([[2.5, -2.]])
@@ -115,7 +119,7 @@ if __name__ == "__main__":
 
     scatter_kw = dict(s=50, color='white', marker='*', label=r'$\bm{x}_{\text{ref.}}$',
                       edgecolor='black', linewidth=0.5, zorder=10)
-    clabel_kw  = dict(fmt="%.1f", fontsize=4, inline=True, inline_spacing=0.5)
+    clabel_kw = dict(fmt="%.1f", fontsize=4, inline=True, inline_spacing=0.5)
 
     fig, ax = make_ax(width, height)
     ax.contourf(xx, yy, log_probs_pX, levels=20, cmap=trunc_cmap, linewidths=0.0, antialiased=True)
